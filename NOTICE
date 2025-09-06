@@ -1,0 +1,38 @@
+MLKEM Server for ESP32 — NOTICE
+================================
+
+Copyright (c) 2025 <Your Name or Organization>
+
+This distribution includes third-party software:
+
+1) MLKEM C Embedded
+   Project: pq-code-package/mlkem-c-embedded
+   URL:     https://github.com/pq-code-package/mlkem-c-embedded
+   License: Apache License, Version 2.0
+   Copyright: © 2024–present The PQ Code Package authors
+   Local path: components/mlkem/
+   Notes: Used for ML-KEM-768 KEM (keygen, encapsulation, decapsulation).
+
+2) ESP-IDF (build framework and platform headers)
+   Project: espressif/esp-idf
+   URL:     https://github.com/espressif/esp-idf
+   License: Apache License, Version 2.0
+   Copyright: © 2015–present Espressif Systems (Shanghai) Co., Ltd.
+   Notes: Toolchain, RTOS, Wi-Fi/Netif, and build integration.
+
+License Summary
+---------------
+This project and the included third-party components are licensed under the
+Apache License, Version 2.0. A copy of the license is provided in the LICENSE
+file at the repository root and may be obtained at http://www.apache.org/licenses/LICENSE-2.0
+
+Attribution Notes
+-----------------
+• If the upstream projects provide their own NOTICE files, keep their notices
+  intact and include them alongside this file (e.g., in components/mlkem/NOTICE).
+• Any modifications you make to vendored third-party files should be documented
+  in commit messages and/or here.
+
+Trademarks
+----------
+All product names, logos, and brands are property of their respective owners.
