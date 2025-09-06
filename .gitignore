@@ -33,3 +33,6 @@ __pycache__/
 # Host test binaries
 host_test/mlkem_client
 host_test/mlkem_client_nohdr
+
+# Backups
+*.bak
