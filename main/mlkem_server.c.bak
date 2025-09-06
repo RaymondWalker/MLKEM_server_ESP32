@@ -1,0 +1,42 @@
+// main/mlkem_server.c
+#include <string.h>
+#include "esp_log.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+
+
+#include "mlkem_wrap.h"
+
+void app_main(void)
+{
+    static const char *TAG = "MLKEM";
+    ESP_LOGI(TAG, "Self-test starting");
+
+    uint8_t pk[MLKEM_PUBLICKEYBYTES];
+    uint8_t sk[MLKEM_SECRETKEYBYTES];
+    uint8_t ct[MLKEM_CIPHERTEXTBYTES];
+    uint8_t ss_enc[MLKEM_SSBYTES];
+    uint8_t ss_dec[MLKEM_SSBYTES];
+
+    if (mlkem_keypair(pk, sk) != 0) {
+        ESP_LOGE(TAG, "keypair fail");
+        goto done;
+    }
+    if (mlkem_encaps(ct, ss_enc, pk) != 0) {
+        ESP_LOGE(TAG, "encaps fail");
+        goto done;
+    }
+    if (mlkem_decaps(ss_dec, ct, sk) != 0) {
+        ESP_LOGE(TAG, "decaps fail");
+        goto done;
+    }
+
+    ESP_LOGI(TAG, "ss match: %s",
+             memcmp(ss_enc, ss_dec, MLKEM_SSBYTES) == 0 ? "yes" : "no");
+
+done:
+    
+    while (1) {
+        vTaskDelay(pdMS_TO_TICKS(2000));
+    }
+}

@@ -1,0 +1,145 @@
+// host_test/mlkem_client.c
+// Reads PK (2-byte BE len + payload), sends CT (no header),
+// reads SS (no header), compares.
+
+#include <arpa/inet.h>
+#include <errno.h>
+#include <netinet/tcp.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <unistd.h>
+
+#include "components/mlkem/src/kem.h"  // MLKEM_PUBLICKEYBYTES, MLKEM_CIPHERTEXTBYTES, MLKEM_SSBYTES, crypto_kem_enc
+
+static int recv_all(int fd, void *buf, size_t len) {
+    uint8_t *p = (uint8_t *)buf;
+    size_t got = 0;
+    while (got < len) {
+        ssize_t n = recv(fd, p + got, len - got, 0);
+        if (n == 0) return -1;               // peer closed
+        if (n < 0) {
+            if (errno == EINTR) continue;
+            perror("recv");
+            return -1;
+        }
+        got += (size_t)n;
+    }
+    return 0;
+}
+
+static int send_all(int fd, const void *buf, size_t len) {
+    const uint8_t *p = (const uint8_t *)buf;
+    size_t sent = 0;
+    while (sent < len) {
+        ssize_t n = send(fd, p + sent, len - sent, 0);
+        if (n < 0) {
+            if (errno == EINTR) continue;
+            perror("send");
+            return -1;
+        }
+        sent += (size_t)n;
+    }
+    return 0;
+}
+
+static void hexdump4(const char *label, const uint8_t *b) {
+    printf("%s[0..3]=%02x%02x%02x%02x\n", label, b[0], b[1], b[2], b[3]);
+}
+
+int main(int argc, char **argv) {
+    if (argc != 3) {
+        fprintf(stderr, "Usage: %s <ip> <port>\n", argv[0]);
+        return 2;
+    }
+    const char *ip = argv[1];
+    int port = atoi(argv[2]);
+
+    int fd = socket(AF_INET, SOCK_STREAM, 0);
+    if (fd < 0) { perror("socket"); return 1; }
+
+    int one = 1;
+    setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &one, sizeof(one));
+
+    struct sockaddr_in sa;
+    memset(&sa, 0, sizeof(sa));
+    sa.sin_family = AF_INET;
+    sa.sin_port = htons((uint16_t)port);
+    if (inet_pton(AF_INET, ip, &sa.sin_addr) != 1) {
+        fprintf(stderr, "Bad IP: %s\n", ip);
+        close(fd);
+        return 1;
+    }
+
+    if (connect(fd, (struct sockaddr *)&sa, sizeof(sa)) != 0) {
+        perror("connect");
+        close(fd);
+        return 1;
+    }
+    printf("Connected to %s:%d\n", ip, port);
+
+    // --- Receive PK header (2B BE) + payload ---
+    uint16_t be_pklen = 0;
+    if (recv_all(fd, &be_pklen, 2) != 0) {
+        fprintf(stderr, "PK: failed to read length header\n");
+        close(fd);
+        return 1;
+    }
+    uint16_t pk_len = (uint16_t)ntohs(be_pklen);
+    printf("PK: header %u", pk_len);
+
+    if (pk_len != MLKEM_PUBLICKEYBYTES) {
+        fprintf(stderr, "  (unexpected, expected %u)\n", (unsigned)MLKEM_PUBLICKEYBYTES);
+        close(fd);
+        return 1;
+    }
+    uint8_t pk[MLKEM_PUBLICKEYBYTES];
+    if (recv_all(fd, pk, MLKEM_PUBLICKEYBYTES) != 0) {
+        fprintf(stderr, "PK: failed to read payload\n");
+        close(fd);
+        return 1;
+    }
+    printf(", payload=%u\n", (unsigned)MLKEM_PUBLICKEYBYTES);
+
+    // --- Encapsulate ---
+    uint8_t ct[MLKEM_CIPHERTEXTBYTES];
+    uint8_t ss_client[MLKEM_SSBYTES];
+    if (crypto_kem_enc(ct, ss_client, pk) != 0) {
+        fprintf(stderr, "crypto_kem_enc failed\n");
+        close(fd);
+        return 1;
+    }
+
+    // --- Send CT WITHOUT header ---
+    printf("Client: sending CT WITHOUT length header (%u bytes)\n", (unsigned)MLKEM_CIPHERTEXTBYTES);
+    if (send_all(fd, ct, MLKEM_CIPHERTEXTBYTES) != 0) {
+        fprintf(stderr, "send CT failed\n");
+        close(fd);
+        return 1;
+    }
+
+    // --- Read SS WITHOUT header (exactly MLKEM_SSBYTES bytes) ---
+    uint8_t ss_server[MLKEM_SSBYTES];
+    if (recv_all(fd, ss_server, MLKEM_SSBYTES) != 0) {
+        perror("recv SS");
+        fprintf(stderr, "SS: failed to read %u bytes (server may have closed on decap error)\n",
+                (unsigned)MLKEM_SSBYTES);
+        close(fd);
+        return 1;
+    }
+
+    // --- Compare ---
+    if (memcmp(ss_client, ss_server, MLKEM_SSBYTES) == 0) {
+        printf("shared secret MATCH ✅\n");
+    } else {
+        printf("shared secret MISMATCH ❌\n");
+        hexdump4("client ss ", ss_client);
+        hexdump4("server ss ", ss_server);
+    }
+
+    close(fd);
+    return 0;
+}

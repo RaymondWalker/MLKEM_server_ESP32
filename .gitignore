@@ -1,0 +1,35 @@
+# Build outputs
+/build/
+/bootloader/
+/sdkconfig.old
+/.pio/
+/dist/
+/out/
+/*.map
+
+# ESP-IDF generated stuff
+*.bin
+*.elf
+*.zip
+*.log
+project_description.json
+flash_args
+flash_args.in
+
+# Local config (commit sdkconfig.defaults instead)
+sdkconfig
+
+# Editor/OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Python venvs
+.venv/
+venv/
+__pycache__/
+
+# Host test binaries
+host_test/mlkem_client
+host_test/mlkem_client_nohdr
