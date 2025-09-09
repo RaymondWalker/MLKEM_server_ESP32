@@ -13,14 +13,9 @@ target_compile_definitions(${COMPONENT_LIB} PRIVATE
  LITTLE_ENDIAN=1234
  BYTE_ORDER=LITTLE_ENDIAN
 )
-# ---- Map SUPERCOP names to your implementation names ----
+components/hybrid_kex/include/x25519mlkem768.h
 # Default to ML-KEM 768 reference symbols:
 target_compile_definitions(${COMPONENT_LIB} PRIVATE
 )
-# If your source actually uses Kyber names, swap the 3 lines above for:
+
 # target_compile_definitions(${COMPONENT_LIB} PRIVATE
-#
-#
-#
-# )
-# If your files end in _clean instead of _ref, use *_clean.
